@@ -43,7 +43,8 @@ const processComponentPage = async url => {
     const title = $('h3', container)
       .text()
       .trim()
-    const code = tui + '\n\n' + $(snippet).text()
+    let code = tui + '\n\n' + $(snippet).text()
+    if (process.env.REACT) code = parseHTMLForReact(code)
     const path = `${dir}/${cleanFilename(title)}.html`
     console.log(`Writing ${path}...`)
     fs.writeFileSync(path, code)
@@ -80,6 +81,7 @@ const cleanFilename = filename => filename.toLowerCase().replace(/[^\w.]/g, '_')
     return 1
   }
   console.log('Success!')
+  if (process.env.REACT) console.log('React-mode activated! 👽')
   const $ = await downloadPage('/components')
   const links = $('.grid a')
   for (let i = 0; i < links.length; i++) {
@@ -91,3 +93,30 @@ const cleanFilename = filename => filename.toLowerCase().replace(/[^\w.]/g, '_')
   }
   return 0
 })()
+
+const parseHTMLForReact = data => {
+  return data
+    .replace(/class=/g, 'className=')
+    .replace(
+      / @([^"]*)=/g,
+      (_all, group) => ` data-todo-at-${group.replace(/[.:]/g, '-')}=`,
+    )
+    .replace(
+      / x-([^ "]*)/g,
+      (_all, group) => ` data-todo-x-${group.replace(/[.:]/g, '-')}`,
+    )
+    .replace(/(<!-- (.*) -->)/g, '{/* $2 */}')
+    .replace(/tabindex="([^"]*)"/g, 'tabIndex={$1}')
+    .replace(/datetime=/g, 'dateTime=')
+    .replace(/clip-rule=/g, 'clipRule=')
+    .replace(/fill-rule=/g, 'fillRule=')
+    .replace(/stroke-linecap=/g, 'strokeLinecap=')
+    .replace(/stroke-width=/g, 'strokeWidth=')
+    .replace(/stroke-linejoin=/g, 'strokeLinejoin=')
+    .replace(/for=/g, 'htmlFor=')
+    .replace(/ :(.*)=/g, ' data-todo-colon-$1=')
+    .replace(/href="#"/g, 'href="/"')
+    .replace(/src="\//g, 'src="https://tailwindui.com/')
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .trim()
+}
